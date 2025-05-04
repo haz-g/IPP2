@@ -398,7 +398,7 @@ if __name__ == "__main__":
                 if AGENT_SCORE >= threshold:
                     shift_amount = int(window_size // 4)
                     new_lb = min(cur_lb + shift_amount, len(training_envs) - window_size)
-                    new_ub = new_lb + window_size
+                    new_ub = max(new_lb + window_size, 479)
                     if new_lb > cur_lb:
                         print(f"Advancing curriculum window to [{new_lb}:{new_ub}] | Tier {new_ub / window_size} | THR: {threshold}")
                     cur_lb = new_lb

@@ -17,6 +17,9 @@ env/
 # Weights & Biases
 wandb/
 
+# Saved models
+src/models/*
+
 # IDEs and editors
 .idea/
 .vscode/
