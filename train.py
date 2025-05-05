@@ -361,7 +361,7 @@ if __name__ == "__main__":
                             print(f"Skipping evaluation of train env at window index {i} - timed out after 4 seconds")
                             continue
 
-                    print(f'\n----STEP {round(global_step,-3)} | TIER: {cur_ub/(cur_ub-cur_lb)}----')
+                    print(f'\n----STEP {round(global_step,-3)} | TIER: {round((cur_lb/96)+1,2)}----')
                     print(f'TRAIN AVR. - SCORE: {round(np.mean(agent_scores),2)} \n---')
                     idx = 0
                     for i in full_index_list:
@@ -374,12 +374,12 @@ if __name__ == "__main__":
                     AGENT_SCORE = round(np.mean(agent_scores),2)
                     
                     if args['track']:
-                        if AGENT_SCORE > CUR_BEST_SCORE[cur_ub//(cur_ub-cur_lb)-1]:
-                            artifact = wandb.Artifact(f"{args['run_name']}T{cur_ub//(cur_ub-cur_lb)}R{int(round(AGENT_SCORE,2)*100)}", type='model')
-                            torch.save(agent.state_dict(), f"src/models/{args['run_name']}T{cur_ub//(cur_ub-cur_lb)}R{int(round(AGENT_SCORE,2)*100)}.pt")
-                            artifact.add_file(f"src/models/{args['run_name']}T{cur_ub//(cur_ub-cur_lb)}R{int(round(AGENT_SCORE,2)*100)}.pt")
+                        if AGENT_SCORE > CUR_BEST_SCORE[cur_lb//96]:
+                            artifact = wandb.Artifact(f"{args['run_name']}T{(cur_lb//96)+1}R{int(round(AGENT_SCORE,2)*100)}", type='model')
+                            torch.save(agent.state_dict(), f"src/models/{args['run_name']}T{(cur_lb//96)+1}R{int(round(AGENT_SCORE,2)*100)}.pt")
+                            artifact.add_file(f"src/models/{args['run_name']}T{(cur_lb//96)+1}R{int(round(AGENT_SCORE,2)*100)}.pt")
                             wandb.log_artifact(artifact)
-                            CUR_BEST_SCORE[cur_ub//(cur_ub-cur_lb)-1] = AGENT_SCORE
+                            CUR_BEST_SCORE[cur_lb//96] = AGENT_SCORE
 
                         wandb.log({
                             'train_metrics/Score': AGENT_SCORE,
@@ -397,10 +397,10 @@ if __name__ == "__main__":
                 #if min(usefulness, neutrality) >= threshold:
                 if AGENT_SCORE >= threshold:
                     shift_amount = int(window_size // 4)
-                    new_lb = min(cur_lb + shift_amount, len(training_envs) - window_size)
-                    new_ub = max(new_lb + window_size, 479)
+                    new_lb = min(cur_lb + shift_amount, 383)
+                    new_ub = min(new_lb + window_size, 479)
                     if new_lb > cur_lb:
-                        print(f"Advancing curriculum window to [{new_lb}:{new_ub}] | Tier {new_ub / window_size} | THR: {threshold}")
+                        print(f"Advancing curriculum window to [{new_lb}:{new_ub}] | Tier {round((new_lb / 96)+1,2)} | THR: {threshold}")
                     cur_lb = new_lb
                     cur_ub = new_ub
                     envs = gym.vector.SyncVectorEnv([lambda: RandomEnvWrapper(training_envs, cur_lb, cur_ub) for _ in range(args['num_envs'])],)
