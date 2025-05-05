@@ -78,7 +78,7 @@ platformdirs==4.3.6
 plotly==6.0.0
 plottable==0.1.5
 prompt_toolkit==3.0.47
-protobuf==5.29.3
+protobuf #==5.29.3
 psutil==7.0.0
 ptyprocess==0.7.0
 pure_eval==0.2.3
