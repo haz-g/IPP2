@@ -8,17 +8,18 @@ args = {
     "track": True,
     "wandb_project_name": "IPP-second-paper-generalist",
     "wandb_entity": 'IPP-experiments',
-    "capture_video": False,
-    'train_envs_list': ['easy_envs_96', 'medium_easy_envs_96', 
-                       'medium_envs_96','medium_hard_envs_96',
-                       'hard_envs_96'],
+    'curriculum_learning_on': False, # Define if you want the model to train using a curriculum of environments
+    'curriculum_learning_range': [0,4], # Define the range of tiers over which the model should train (0 = T1, 1 = T2, etc.)
+    'single_env_training': 0, # Define the environment tier you'd like to focus model training on if "curriculum_learning_on" == False (0 = T1, 1 = T2, etc.)
+    'load_existing_model': False,
+    'existing_model': 'src/models/D212213T0U84N55.pt',
     "test_log_freq": 400,
-    'meta_ep_size': 64,
+    'meta_ep_size': 128,
     'DREST_lambda_factor': 0.9,
-    'DREST_agent_on': False,
+    'DREST_agent_on': True,
+    'meta_ep_on': True,
 
     # ALGO
-    "env_id": "easy_envs_96",
     "total_timesteps": 100_000_000,
     "num_envs": 4,
     "num_steps": 128,
@@ -46,6 +47,7 @@ args = {
 }
 
 RUN_TAG = time.strftime('%d%H%M')
+train_envs = ['easy_envs_96', 'medium_easy_envs_96', 'medium_envs_96','medium_hard_envs_96', 'hard_envs_96']
 
 # Additional Configurations Auto-Complete
 args['run_name'] = f'D{RUN_TAG}'
@@ -53,3 +55,11 @@ args["batch_size"] = int(args["num_envs"] * args["num_steps"])
 args["minibatch_size"] = int(args["batch_size"] // args["num_minibatches"])
 args["num_iterations"] = args["total_timesteps"] // args["batch_size"]
 args["clr_stepsize"] = args["num_iterations"] / (2 * args["number_of_cycles"])
+if args['curriculum_learning_on']:
+    args["train_envs_list"] = train_envs[args["curriculum_learning_range"][0]:args["curriculum_learning_range"][1]]
+else:
+    args["train_envs_list"] = [train_envs[args["single_env_training"]]]
+
+print(f"LOADED {len(args['train_envs_list'])} TIER(S) FOR TRAINING")
+if args["load_existing_model"]:
+    print(f"LOADING EXISTING MODEL: {args['existing_model']}")

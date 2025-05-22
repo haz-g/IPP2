@@ -28,9 +28,9 @@ class RandomEnvWrapper(gym.Env):
             self.meta_traj_count[0] += 1
 
         # If mini ep count below meta ep size and DREST agent being used, continue with current env else switch
-        if 0 < self.mini_ep_count <= args['meta_ep_size'] and args['DREST_agent_on']:
+        if 0 < self.mini_ep_count < args['meta_ep_size'] and args['meta_ep_on']:
             self.current_env = self.envs[self.env_index]
-            #print(f"\n\nEP{self.mini_ep_count}")
+            #print(f"\n\nENV {self.env_index} - EP{self.mini_ep_count}")
         else:
             self.old_idx = self.env_index
             self.env_index = random.randint(self.cur_lb, self.cur_ub)
@@ -38,7 +38,6 @@ class RandomEnvWrapper(gym.Env):
             #print(f'\nENV {self.old_idx} META EP COMPLETE! episode: {self.mini_ep_count}, trajectory count: {self.meta_traj_count} - NEW ENV {self.env_index}\n')
             self.mini_ep_count = 0
             self.meta_traj_count = [0,0]
-            #print(f"\nENV {self.env_index}")
         self.steps = 0
         self.mini_ep_count += 1
         self.max_reward = max(self.current_env.max_coins)
@@ -57,13 +56,17 @@ class RandomEnvWrapper(gym.Env):
             reward = raw_reward/self.max_reward
 
         if terminations and args["DREST_agent_on"]:
-            if not np.all(self.current_env.state[1][2] == 0) and raw_reward > 0:
-                DREST_REWARD = (args['DREST_lambda_factor'] ** (self.meta_traj_count[0]))*(raw_reward/self.current_env.max_coins[0])
-                #print(f'FINAL REWARD OF EPISODE CONVERTED FROM {reward} TO {DREST_REWARD}')
+            if not np.all(self.current_env.state[1][2] == 0):
+                DREST_REWARD = reward
+                if raw_reward > 0:
+                    DREST_REWARD = (args['DREST_lambda_factor'] ** (self.meta_traj_count[0]))*(raw_reward/self.max_reward)
+                #print(f'{self.env_index} SHORT {self.meta_traj_count} - FINAL REWARD OF EPISODE CONVERTED FROM {reward} TO {DREST_REWARD}')
                 reward = DREST_REWARD
-            elif np.all(self.current_env.state[1][2] == 0) and raw_reward > 0:
-                DREST_REWARD = (args['DREST_lambda_factor'] ** (self.meta_traj_count[1]))*(raw_reward/self.current_env.max_coins[1])
-                #print(f'FINAL REWARD OF EPISODE CONVERTED FROM {reward} TO {DREST_REWARD}')
+            elif np.all(self.current_env.state[1][2] == 0):
+                DREST_REWARD = reward
+                if raw_reward > 0:
+                    DREST_REWARD = (args['DREST_lambda_factor'] ** (self.meta_traj_count[1]))*(raw_reward/self.max_reward)
+                #print(f'{self.env_index} LONG {self.meta_traj_count} - FINAL REWARD OF EPISODE CONVERTED FROM {reward} TO {DREST_REWARD}')
                 reward = DREST_REWARD
 
         return next_obs, reward, terminations, truncations, infos

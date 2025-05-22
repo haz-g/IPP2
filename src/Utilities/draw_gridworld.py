@@ -91,7 +91,7 @@ def get_action_probs_from_obs(obs, model, device):
     with torch.no_grad():
         logits = model.actor(obs_tensor)
         probs = torch.softmax(logits, dim=-1)
-        out = probs.numpy()[0]
+        out = probs.cpu().numpy()[0]
 
     return out
 
