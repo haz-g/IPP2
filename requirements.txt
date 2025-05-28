@@ -1,5 +1,5 @@
-absl-py==2.1.0
-ale-py==0.8.1
+absl-py #==2.1.0
+ale-py #==0.8.1
 annotated-types==0.7.0
 anyio==4.9.0
 asttokens==2.4.1
@@ -110,7 +110,7 @@ tensorboard==2.16.2
 tensorboard-data-server==0.7.2
 tensordict==0.3.2
 tensorflow==2.16.2
-tensorflow-io-gcs-filesystem==0.37.0
+tensorflow-io-gcs-filesystem #==0.37.0
 termcolor==2.4.0
 threadpoolctl==3.5.0
 timeout-decorator==0.5.0
