@@ -204,7 +204,7 @@ class GridEnvironment(gym.Env):
         coin_value = self._handle_coin_collection()
         reward = coin_value
         if self.agent_position == old_pos:
-                reward = -1
+                reward = -2
 
         # Track state visit counts
         self.state_visit_counts[self.get_index()] += 1
