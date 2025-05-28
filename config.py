@@ -2,7 +2,7 @@ import time
 
 args = {
     # SETUP
-    "seed": 1, # Choose from: [1, 42, 100, 2023, 2024]
+    "seed": 2, # Choose from: [1, 42, 100, 2023, 2024]
     "torch_deterministic": True,
     "cuda": True,
     "track": True,
@@ -15,12 +15,12 @@ args = {
     "test_log_freq": 400,
     'meta_ep_size': 64,
     'DREST_lambda_factor': 0.9,
-    'DREST_agent_on': False,
+    'DREST_agent_on': True,
 
     # ALGO
     "env_id": "easy_envs_96",
     "total_timesteps": 100_000_000,
-    "num_envs": 4,
+    "num_envs": 2,
     "num_steps": 128,
     "gamma": 0.99,
     "gae_lambda": 0.95,
@@ -29,12 +29,12 @@ args = {
     "norm_adv": True,
     "clip_coef": 0.2,
     "clip_vloss": True,
-    "ent_coef": 0.01,
+    "ent_coef": 0.02,
     "vf_coef": 0.5,
     "max_grad_norm": 0.5,
     "target_kl": None,
-    "learning_rate": 3e-4,
-    "anneal_lr": True,
+    "learning_rate": 3e-5,
+    "anneal_lr": False,
     "test_train_split": False,
     
     # CLR Parameters
@@ -44,6 +44,8 @@ args = {
     "clr_base_lr": 7.5e-5,  # 1/4 of max_lr
     "clr_max_lr": 3e-4,    # Matches your original learning_rate
 }
+
+args["model_save_name"] = f"ppo_CL5x96_SA24_THDec_penwalls2_{args['seed']}_{args['DREST_lambda_factor']}_{args['meta_ep_size']}_{args['total_timesteps']}"
 
 RUN_TAG = time.strftime('%d%H%M')
 

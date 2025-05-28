@@ -13,6 +13,7 @@ venv/
 .env
 .venv
 env/
+venv2/
 
 # Weights & Biases
 wandb/
