@@ -174,6 +174,9 @@ def get_transition_matrix(env, model): #CHECKED
         
         with torch.no_grad():
             # For standard Agent that expects flattened input
+            obs_tensor = torch.from_numpy(obs_tensor) #CC
+            obs_tensor = torch.tensor(obs_tensor,dtype=torch.float32) #CC
+            obs_tensor = obs_tensor.unsqueeze(0) #CC
             logits = model.actor(obs_tensor)
             probs = torch.softmax(logits, dim=-1)
             probs = probs.cpu().numpy()[0]
