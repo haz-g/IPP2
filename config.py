@@ -13,14 +13,14 @@ args = {
     'single_env_training': 0, # Define the environment tier you'd like to focus model training on if "curriculum_learning_on" == False (0 = T1, 1 = T2, etc.)
     'load_existing_model': False,
     'existing_model': 'src/models/D212213T0U84N55.pt',
-    "test_log_freq": 400,
+    "test_log_freq": 800,
     'meta_ep_size': 128,
     'DREST_lambda_factor': 0.9,
     'DREST_agent_on': True,
     'meta_ep_on': True,
 
     # ALGO
-    "total_timesteps": 100_000_000,
+    "total_timesteps": 200_000_000,
     "num_envs": 4,
     "num_steps": 128,
     "gamma": 0.99,
@@ -41,13 +41,13 @@ args = {
     # CLR Parameters
     "use_clr": True,  # Set this to True to enable CLR
     "clr_policy": "triangular",
-    "number_of_cycles": 16,  # how many complete cycles over training
-    "clr_base_lr": 7.5e-5,  # 1/4 of max_lr
+    "number_of_cycles": 32,  # how many complete cycles over training
+    "clr_base_lr": 7.5e-5,  # 1/8 of max_lr
     "clr_max_lr": 3e-4,    # Matches your original learning_rate
 }
 
 RUN_TAG = time.strftime('%d%H%M')
-train_envs = ['easy_envs_96', 'medium_easy_envs_96', 'medium_envs_96','medium_hard_envs_96', 'hard_envs_96']
+train_envs = ['easy_envs_864', 'medium_easy_envs_96', 'medium_envs_96','medium_hard_envs_96', 'hard_envs_96']
 
 # Additional Configurations Auto-Complete
 args['run_name'] = f'D{RUN_TAG}'

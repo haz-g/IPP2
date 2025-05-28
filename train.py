@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     # env setup
     cur_lb = 0
-    cur_ub = 95
+    cur_ub = 863
     cur_best_avr_usefulness = [0,0,0,0,0]
     cur_best_avr_neutrality = [0,0,0,0,0]
     CUR_BEST_SCORE = [0,0,0,0,0]
@@ -264,7 +264,7 @@ if __name__ == "__main__":
                     print(f"\n----STEP {round(global_step,-3)} | TIER: {cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']+1}----")
                     print(f'TRAIN AVR. - USE: {round(np.mean(train_usefulness_list),2)} | NEU: {round(np.mean(train_neutrality_list),2)} | TRA: [{round(np.mean(train_traj_short_list),2)},{round(np.mean(train_traj_long_list),2)}]\n---')
                     idx = 0
-                    env_values = range(cur_lb, cur_ub, 8) if args['curriculum_learning_on'] else range(args['single_env_training']*96, (args['single_env_training']+1)*96, 8)
+                    env_values = range(cur_lb, cur_ub, 8) if args['curriculum_learning_on'] else range(args['single_env_training']*96 if args['single_env_training'] > 0 else args['single_env_training']*864, (args['single_env_training']+1)*96 if args['single_env_training'] > 0 else (args['single_env_training']+1)*864, 8)
                     for i in env_values:
                         print(f'env{i} - USE: {round(train_usefulness_list[idx],2)} | NEU: {round(train_neutrality_list[idx],2)} | TRA: [{round(train_traj_short_list[idx],2)},{round(train_traj_long_list[idx],2)}]')
                         idx += 1
@@ -284,8 +284,7 @@ if __name__ == "__main__":
                         wandb.log({
                             f"train_metrics/T{cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']}_Usefulness": usefulness,
                             f"train_metrics/T{cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']}_Neutrality": neutrality,
-                            f"train_metrics/T{cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']}Trajectory_Ratio": normalise_ratio_with_exp(mean_short_traj, mean_long_traj),
-                            'curriculum/tier': cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training'],
+                            'curriculum/tier': ((cur_lb//96) + 1) if args['curriculum_learning_on'] else (args['single_env_training'] + 1),
                             'train_metrics/PolicyVisualisations': policy_plots
                         }, step=global_step)
                 
