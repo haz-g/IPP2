@@ -229,12 +229,14 @@ if __name__ == "__main__":
                                 env.max_coins[0]   # shorter trajectory
                             ]))
 
+                            '''   
                             # Draw policy and create wandb image
                             plt.figure(figsize=(10, 5))
                             draw_policy(env, agent, device)
                             policy_plot = wandb.Image(plt.gcf(), caption=f'Policy for Env {i} at iteration {iteration}')
                             policy_plots.append(policy_plot)
                             plt.close()
+                            ''' 
 
                             if isnan(neutral):
                                 neutral = 0
@@ -258,7 +260,7 @@ if __name__ == "__main__":
                     mean_short_traj = np.mean(train_traj_short_list)
                     mean_long_traj = np.mean(train_traj_long_list)
 
-                    print(f'\n----STEP {round(global_step,-3)} | TIER: {cur_ub/(cur_ub-cur_lb)}----')
+                    print(f'\n----STEP {round(global_step,-3)} | TIER: {round((cur_lb/96)+1,2)}----')
                     print(f'TRAIN AVR. - USE: {round(np.mean(train_usefulness_list),2)} | NEU: {round(np.mean(train_neutrality_list),2)} | TRA: [{round(np.mean(train_traj_short_list),2)},{round(np.mean(train_traj_long_list),2)}]\n---')
                     idx = 0
                     for i in range(cur_lb, cur_ub, 8):
@@ -283,20 +285,21 @@ if __name__ == "__main__":
                             'train_metrics/Trajectory_Ratio': normalise_ratio_with_exp(mean_short_traj, mean_long_traj),
                             'curriculum/window_start': cur_lb,
                             'curriculum/window_end': cur_ub,
-                            'curriculum/tier': cur_ub // (cur_ub-cur_lb),
-                            'train_metrics/PolicyVisualisations': policy_plots
+                            'curriculum/tier': cur_ub // (cur_ub-cur_lb)
+                            #'train_metrics/PolicyVisualisations': policy_plots
                         }, step=global_step)
                 
                 window_size = (cur_ub-cur_lb)
-                threshold = 0.8
+                threshold = round(0.8 - 0.005, 2)  # Gradually lower threshold for higher tiers
+                threshold = max(0.7, threshold)  # Don't go below 0.7
 
                 #if min(usefulness, neutrality) >= threshold:
                 if usefulness >= threshold:
-                    shift_amount = int(window_size // 4)
-                    new_lb = min(cur_lb + shift_amount, len(training_envs) - window_size)
-                    new_ub = new_lb + window_size
+                    shift_amount = 24 # int(window_size // 4)
+                    new_lb = min(cur_lb + shift_amount, 383)
+                    new_ub = min(cur_ub + shift_amount, 479)
                     if new_lb > cur_lb:
-                        print(f"Advancing curriculum window to [{new_lb}:{new_ub}] (Tier {new_ub // window_size})")
+                        print(f"Advancing curriculum window to [{new_lb}:{new_ub}] (Tier {round((new_lb/96)+1,3)})")
                     cur_lb = new_lb
                     cur_ub = new_ub
                     envs = gym.vector.SyncVectorEnv([lambda: RandomEnvWrapper(training_envs, cur_lb, cur_ub) for _ in range(args['num_envs'])],)
@@ -396,7 +399,7 @@ if __name__ == "__main__":
 
                 #if min(usefulness, neutrality) >= threshold:
                 if AGENT_SCORE >= threshold:
-                    shift_amount = int(window_size // 4)
+                    shift_amount = int(window_size // 4) #change to level set size / 4
                     new_lb = min(cur_lb + shift_amount, 383)
                     new_ub = min(new_lb + window_size, 479)
                     if new_lb > cur_lb:
@@ -409,5 +412,11 @@ if __name__ == "__main__":
                     next_done = torch.zeros(args['num_envs']).to(device)
 
             agent.train()
+
+          
+    for env in training_envs:                                        
+            draw_policy(env, agent, device)
+            wandb.log({'train_metrics/PolicyVisualisations': [wandb.Image(plt)]})
+            plt.close()
 
     envs.close()
