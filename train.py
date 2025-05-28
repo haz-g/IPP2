@@ -52,15 +52,18 @@ if __name__ == "__main__":
 
     # env setup
     cur_lb = 0
-    cur_ub = 80
-    cur_best_avr_usefulness = 0
-    cur_best_avr_neutrality = 0
+    cur_ub = 95
+    cur_best_avr_usefulness = [0,0,0,0,0]
+    cur_best_avr_neutrality = [0,0,0,0,0]
     CUR_BEST_SCORE = [0,0,0,0,0]
+    cl_multiple = 1
     envs = gym.vector.SyncVectorEnv([lambda: RandomEnvWrapper(training_envs, cur_lb, cur_ub) for _ in range(args['num_envs'])],)
 
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     agent = Agent(envs).to(device)
+    if args["load_existing_model"]:
+        agent.load_state_dict(torch.load(args["existing_model"], map_location=device, weights_only=True))
     optimizer = optim.Adam(agent.parameters(), lr=args['learning_rate'], eps=1e-5)
 
     # ALGO Logic: Storage setup
@@ -260,10 +263,11 @@ if __name__ == "__main__":
                     mean_short_traj = np.mean(train_traj_short_list)
                     mean_long_traj = np.mean(train_traj_long_list)
 
-                    print(f'\n----STEP {round(global_step,-3)} | TIER: {round((cur_lb/96)+1,2)}----')
+                    print(f"\n----STEP {round(global_step,-3)} | TIER: {cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']+1}----")
                     print(f'TRAIN AVR. - USE: {round(np.mean(train_usefulness_list),2)} | NEU: {round(np.mean(train_neutrality_list),2)} | TRA: [{round(np.mean(train_traj_short_list),2)},{round(np.mean(train_traj_long_list),2)}]\n---')
                     idx = 0
-                    for i in range(cur_lb, cur_ub, 8):
+                    env_values = range(cur_lb, cur_ub, 8) if args['curriculum_learning_on'] else range(args['single_env_training']*96, (args['single_env_training']+1)*96, 8)
+                    for i in env_values:
                         print(f'env{i} - USE: {round(train_usefulness_list[idx],2)} | NEU: {round(train_neutrality_list[idx],2)} | TRA: [{round(train_traj_short_list[idx],2)},{round(train_traj_long_list[idx],2)}]')
                         idx += 1
                     
@@ -271,41 +275,40 @@ if __name__ == "__main__":
                         print(f'---\nTEST AVR. - USE: {round(np.mean(test_usefulness_list),2)} | NEU: {round(np.mean(test_neutrality_list),2)} | TRA: [{round(np.mean(test_traj_short_list),2)},{round(np.mean(test_traj_long_list),2)}]\n')
                     
                     if args['track']:
-                        if (usefulness + neutrality)/2 > (cur_best_avr_usefulness + cur_best_avr_neutrality)/2:
-                            artifact = wandb.Artifact(f"{args['run_name']}U{int(round(usefulness,2)*100)}N{int(round(neutrality,2)*100)}", type='model')
-                            torch.save(agent.state_dict(), f"src/models/{args['run_name']}U{int(round(usefulness,2)*100)}N{int(round(neutrality,2)*100)}.pt")
-                            artifact.add_file(f"src/models/{args['run_name']}U{int(round(usefulness,2)*100)}N{int(round(neutrality,2)*100)}.pt")
+                        if (usefulness + neutrality)/2 > (cur_best_avr_usefulness[cur_lb//96] + cur_best_avr_neutrality[cur_lb//96])/2:
+                            artifact = wandb.Artifact(f"{args['run_name']}T{(cur_lb//96)}U{int(round(usefulness,2)*100)}N{int(round(neutrality,2)*100)}", type='model')
+                            torch.save(agent.state_dict(), f"src/models/{args['run_name']}T{(cur_lb//96)}U{int(round(usefulness,2)*100)}N{int(round(neutrality,2)*100)}.pt")
+                            artifact.add_file(f"src/models/{args['run_name']}T{(cur_lb//96)}U{int(round(usefulness,2)*100)}N{int(round(neutrality,2)*100)}.pt")
                             wandb.log_artifact(artifact)
-                            cur_best_avr_usefulness = usefulness
-                            cur_best_avr_neutrality = neutrality
+                            cur_best_avr_usefulness[cur_lb//96] = usefulness
+                            cur_best_avr_neutrality[cur_lb//96] = neutrality
 
                         wandb.log({
-                            'train_metrics/Usefulness': usefulness,
-                            'train_metrics/Neutrality': neutrality,
-                            'train_metrics/Trajectory_Ratio': normalise_ratio_with_exp(mean_short_traj, mean_long_traj),
-                            'curriculum/window_start': cur_lb,
-                            'curriculum/window_end': cur_ub,
-                            'curriculum/tier': cur_ub // (cur_ub-cur_lb)
-                            #'train_metrics/PolicyVisualisations': policy_plots
+                            f"train_metrics/T{cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']}_Usefulness": usefulness,
+                            f"train_metrics/T{cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']}_Neutrality": neutrality,
+                            f"train_metrics/T{cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training']}Trajectory_Ratio": normalise_ratio_with_exp(mean_short_traj, mean_long_traj),
+                            'curriculum/tier': cur_lb//96 if args['curriculum_learning_on'] else args['single_env_training'],
+                            'train_metrics/PolicyVisualisations': policy_plots
                         }, step=global_step)
                 
                 window_size = (cur_ub-cur_lb)
-                threshold = round(0.8 - 0.005, 2)  # Gradually lower threshold for higher tiers
-                threshold = max(0.7, threshold)  # Don't go below 0.7
+                use_threshold = 0.9
+                step_threshold = int(args['total_timesteps']/5) * cl_multiple
 
-                #if min(usefulness, neutrality) >= threshold:
-                if usefulness >= threshold:
-                    shift_amount = 24 # int(window_size // 4)
+                if args['curriculum_learning_on'] and (global_step > step_threshold or usefulness >= use_threshold):
+                    shift_amount = cur_ub-cur_lb
                     new_lb = min(cur_lb + shift_amount, 383)
-                    new_ub = min(cur_ub + shift_amount, 479)
-                    if new_lb > cur_lb:
-                        print(f"Advancing curriculum window to [{new_lb}:{new_ub}] (Tier {round((new_lb/96)+1,3)})")
+                    new_ub = min(new_lb + shift_amount, 479)
+
+                    print(f"\n\n---ADVANCING CURRICULUM WINDOW AT STEP {global_step}---\nNew Tier {round(((new_lb )/96),2)} | Envs: {new_lb}-{new_ub}")
+
                     cur_lb = new_lb
                     cur_ub = new_ub
                     envs = gym.vector.SyncVectorEnv([lambda: RandomEnvWrapper(training_envs, cur_lb, cur_ub) for _ in range(args['num_envs'])],)
                     next_obs, _ = envs.reset(seed=args['seed'])
                     next_obs = torch.Tensor(next_obs).to(device)
                     next_done = torch.zeros(args['num_envs']).to(device)
+                    cl_multiple += 1
             else:
                 agent_scores = []
                 agent_scores_test = []
@@ -392,18 +395,17 @@ if __name__ == "__main__":
                             'train_metrics/PolicyVisualisations': policy_plots
                         }, step=global_step)
                 
-                window_size = (cur_ub-cur_lb)
+                window_size = 96
 
-                threshold = round(0.8 - (0.05 * (cur_ub / window_size) if (cur_ub / window_size) > 1 else 0), 2)  # Gradually lower threshold for higher tiers
+                threshold = round(0.8 - ((0.05 * ((cur_lb/window_size) + 1)) if (cur_lb/window_size) > 0 else 0), 2)  # Gradually lower threshold for higher tiers
                 threshold = max(0.6, threshold)  # Don't go below 0.6
 
                 #if min(usefulness, neutrality) >= threshold:
-                if AGENT_SCORE >= threshold:
-                    shift_amount = int(window_size // 4) #change to level set size / 4
+                if args['curriculum_learning_on'] and AGENT_SCORE >= threshold:
+                    shift_amount = int(window_size // 4)
                     new_lb = min(cur_lb + shift_amount, 383)
                     new_ub = min(new_lb + window_size, 479)
-                    if new_lb > cur_lb:
-                        print(f"Advancing curriculum window to [{new_lb}:{new_ub}] | Tier {round((new_lb / 96)+1,2)} | THR: {threshold}")
+                    print(f"Advancing curriculum window to [{new_lb}:{new_ub}] | Tier {round((new_lb / 96)+1,2)} | THR: {threshold}")
                     cur_lb = new_lb
                     cur_ub = new_ub
                     envs = gym.vector.SyncVectorEnv([lambda: RandomEnvWrapper(training_envs, cur_lb, cur_ub) for _ in range(args['num_envs'])],)

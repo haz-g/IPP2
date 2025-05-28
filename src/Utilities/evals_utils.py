@@ -167,10 +167,7 @@ def get_transition_matrix(env, model): #CHECKED
         # get state in (2,5,5,5) format
         state = env.pos_flags_repr_to_2455_repr(pos_flags) 
         # get action probabilities
-        obs_tensor = state.reshape(-1)                       # 250
-        #pad  = np.zeros(2, dtype=np.float32)           # counters = 0
-        #aug  = np.concatenate([flat, pad], dtype=np.float32)   # 252
-        #obs_tensor = torch.as_tensor(aug).unsqueeze(0).to(device)
+        obs_tensor = torch.Tensor(state).to(device).unsqueeze(0).view(1, -1)
         
         with torch.no_grad():
             # For standard Agent that expects flattened input
